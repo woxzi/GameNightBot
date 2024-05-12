@@ -3,7 +3,9 @@ import Config from "./appsettings.json";
 import ready from "./listeners/ready";
 import interactionCreate from "./listeners/interactionCreate";
 import messageCreate from "./listeners/messageCreate";
+import registerCronTriggers from "./listeners/registerCronTriggers";
 import { QueryClient } from "@tanstack/query-core";
+import { CronJob } from "cron";
 
 export const queryClient = new QueryClient();
 
@@ -26,6 +28,7 @@ const client = new Client(clientOptions);
 // register listeners
 interactionCreate(client);
 messageCreate(client);
+registerCronTriggers(client);
 ready(client, inviteLink);
 
 client.login(Config.token);

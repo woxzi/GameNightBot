@@ -1,15 +1,16 @@
 import { Command } from "./Command";
-import { Leaderboard } from "./commands/Leaderboard";
 import { Stats } from "./commands/Stats";
-import { SetChannel } from "./commands/SetChannel";
-import { Settings } from "./commands/Settings";
-import { SetTimezone } from "./commands/SetTimezone";
+import { Vote } from "./commands/Vote";
+import { Upvote } from "./commands/Upvote";
+import { Downvote } from "./commands/Downvote";
+import { Test } from "./commands/Test";
+import { ResetDb } from "./commands/ResetDb";
 
 export const Commands: Command[] = [
-  SetChannel,
   Stats,
-  //ResetDb,
-  Leaderboard,
-  Settings,
-  SetTimezone,
+  Vote,
+  Upvote,
+  Downvote,
+  Test,
+  ResetDb,
 ];

@@ -16,12 +16,12 @@ function getConnection() {
 export function resetDbFile() {
   db.exec(
     `DROP TABLE IF EXISTS Players;
-    CREATE TABLE Players
+    CREATE TABLE Votes
     (
         Guild VARCHAR(50) NOT NULL,
         UserId VARCHAR(50) NOT NULL,
         DisplayName VARCHAR(50) NOT NULL,
-        WinTotal INTEGER NOT NULL,
+        VotedFor VARCHAR(400) NOT NULL,
         PointTotal INTEGER NOT NULL,
         PRIMARY KEY (Guild, UserId)
     );`.trim()
