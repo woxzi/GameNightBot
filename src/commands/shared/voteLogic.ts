@@ -44,7 +44,10 @@ export default async ({
   const games = getGamesList();
   const maxVotes = getMaxVotes(voteType);
 
-  const formState: VoteFormState = { votes: numVotes };
+  const formState: VoteFormState = {
+    userId: interaction.user.id,
+    votes: numVotes,
+  };
 
   const response1 = await interaction.reply({
     ephemeral: true,
@@ -104,7 +107,7 @@ function HandleSubmit(
   formState: VoteFormState,
   interaction: ButtonInteraction<CacheType>
 ) {
-  formState.votes ??= 1;
+  formState.votes ??= appsettings.pollConfig.defaultVotes;
 
   let voteType: VoteType;
   let voteArrow: string = "";
@@ -169,44 +172,45 @@ function getGamesDropdown(games: Array<string>, initialValue?: string) {
   return output;
 }
 
-function getUpVoteButton(isDisabled: boolean) {
+function getUpVoteButton(formState: VoteFormState) {
   const output = new ButtonBuilder()
     .setCustomId(voteSubmitUpvoteButtonId)
     .setLabel("↑")
     .setStyle(ButtonStyle.Success);
 
-  if (isDisabled) {
+  if (shouldDisableUpvoteButton(formState)) {
     output.setDisabled(true);
   }
 
   return output;
 }
 
-function getDownVoteButton(isDisabled: boolean) {
+function getDownVoteButton(formState: VoteFormState) {
   const output = new ButtonBuilder()
     .setCustomId(voteSubmitDownvoteButtonId)
     .setLabel("↓")
     .setStyle(ButtonStyle.Danger);
 
-  if (isDisabled) {
+  if (shouldDisableDownvoteButton(formState)) {
     output.setDisabled(true);
   }
 
   return output;
 }
 
-function getSubmitButton(isDisabled: boolean, voteType: VoteType) {
+function getSubmitButton(formState: VoteFormState, voteType: VoteType) {
   const output = new ButtonBuilder()
     .setLabel("Submit")
     .setStyle(ButtonStyle.Primary);
 
-  if (voteType === VoteType.Upvote)
-    output.setCustomId(voteSubmitUpvoteButtonId);
-  else if (voteType === VoteType.Downvote)
-    output.setCustomId(voteSubmitDownvoteButtonId);
-
-  if (isDisabled) {
-    output.setDisabled(true);
+  if (voteType === VoteType.Upvote) {
+    output
+      .setCustomId(voteSubmitUpvoteButtonId)
+      .setDisabled(shouldDisableUpvoteButton(formState));
+  } else if (voteType === VoteType.Downvote) {
+    output
+      .setCustomId(voteSubmitDownvoteButtonId)
+      .setDisabled(shouldDisableDownvoteButton(formState));
   }
 
   return output;
@@ -240,12 +244,32 @@ interface GetComponentRowsParams {
 }
 
 interface VoteFormState {
+  userId: string;
   game?: string;
   votes?: number;
 }
 
+function GetRemainingUpvotes() {
+  // fill this out
+  return 6;
+}
+function GetRemainingDownvotes() {
+  // fill this out
+  return 4;
+}
+
 function isFormComplete(formState: VoteFormState): boolean {
   return !!formState.game;
+}
+
+function shouldDisableUpvoteButton(formState: VoteFormState): boolean {
+  const votes = formState.votes ?? appsettings.pollConfig.defaultVotes;
+  return !isFormComplete(formState) || votes > GetRemainingUpvotes();
+}
+
+function shouldDisableDownvoteButton(formState: VoteFormState): boolean {
+  const votes = formState.votes ?? appsettings.pollConfig.defaultVotes;
+  return !isFormComplete(formState) || votes > GetRemainingDownvotes();
 }
 
 function getComponentRows({
@@ -263,19 +287,19 @@ function getComponentRows({
     getNumVotesDropdown(maxVotes, formState.votes ?? numVotes)
   );
 
-  const disableButtons = !isFormComplete(formState);
-  const row3 = getButtonRow(voteType, disableButtons);
+  const row3 = getButtonRow(formState);
 
   return [row1, row2, row3];
 }
 
-function getButtonRow(voteType?: VoteType, isDisabled: boolean = true) {
+function getButtonRow(formState: VoteFormState, voteType?: VoteType) {
   const output = new ActionRowBuilder<ButtonBuilder>();
   if (!!voteType) {
-    output.addComponents(getSubmitButton(isDisabled, voteType));
+    output.addComponents(getSubmitButton(formState, voteType));
   } else {
-    output.addComponents(getUpVoteButton(isDisabled));
-    output.addComponents(getDownVoteButton(isDisabled));
+    output
+      .addComponents(getUpVoteButton(formState))
+      .addComponents(getDownVoteButton(formState));
   }
   return output;
 }
@@ -284,7 +308,10 @@ function getMessageContent(formState: VoteFormState) {
   const prefix = "### ";
   if (!formState.game) {
     return prefix + "Please select a game to vote for.";
-  } else if (!formState.votes || formState.votes === 1) {
+  } else if (
+    !formState.votes ||
+    formState.votes === appsettings.pollConfig.defaultVotes
+  ) {
     return prefix + `You are voting for *${formState.game}*`;
   } else {
     return (
