@@ -11,6 +11,8 @@ import {
   ButtonInteraction,
 } from "discord.js";
 import appsettings from "../../appsettings.json";
+import { getPollStatus } from "src/data";
+import { PollStatuses } from "src/dbModels";
 
 const gamesDropdownId = "vote.games";
 const votesDropdownId = "vote.numVotes";
@@ -35,12 +37,35 @@ const gamesForTesting = [
   "Element TD",
 ];
 
+// returns if validation step was successful
+async function DoValidation(
+  interaction: CommandInteraction<CacheType>
+): Promise<boolean> {
+  var status = await getPollStatus({ Guild: interaction.guildId as string });
+
+  if (status !== PollStatuses.Polling) {
+    return false;
+  }
+  return true;
+}
+
 export default async ({
   client,
   interaction,
   voteType,
   numVotes,
 }: VoteLogicParams) => {
+  const validationSuccessful = await DoValidation(interaction);
+  if (!validationSuccessful) {
+    interaction.reply({
+      ephemeral: true,
+      content:
+        "The poll is not accepting votes right now. Please check back later.",
+    });
+
+    return;
+  }
+
   const games = getGamesList();
   const maxVotes = getMaxVotes(voteType);
 

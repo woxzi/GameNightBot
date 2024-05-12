@@ -6,6 +6,7 @@ import {
 } from "discord.js";
 import { Command } from "../Command";
 import { resetDbFile } from "../data";
+import appsettings from "../appsettings.json";
 
 export const ResetDb: Command = {
   name: "reset_database",
@@ -14,10 +15,17 @@ export const ResetDb: Command = {
   defaultMemberPermissions: PermissionFlagsBits.Administrator,
   run: async (client: Client, interaction: CommandInteraction) => {
     const content = "Successfully created database";
-    resetDbFile();
-    await interaction.reply({
-      ephemeral: true,
-      content,
-    });
+    if (interaction.user.id === appsettings.appConfig.administratorUserId) {
+      resetDbFile();
+      await interaction.reply({
+        ephemeral: true,
+        content,
+      });
+    } else {
+      interaction.reply({
+        ephemeral: true,
+        content: "You do not have permission to reset the app database!",
+      });
+    }
   },
 };

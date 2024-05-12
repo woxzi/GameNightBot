@@ -1,35 +1,55 @@
-interface UserData {
+export interface Vote {
   Guild: string;
   UserId: string;
-  DisplayName?: string;
+  DisplayName: string;
+  VotedFor: string;
+  VoteCount: number;
+  WeekNumber: number;
 }
 
-interface PlayerData extends UserData {
-  WinTotal: number;
-  PointTotal: number;
-}
-
-interface AddPlayerPointsRequest extends UserData {
-  Winner: boolean;
-  Points: number;
-  Place: number;
-  Date: number;
-}
-
-interface GuildConfiguration {
+export interface Suggestion {
   Guild: string;
-  TargetChannelId?: string;
-  Timezone: string;
+  SuggestedByUserId: string;
+  SuggestedByDisplayName: string;
+  Name: string;
+  WeekNumber: number;
 }
 
-interface DailyStatus {
-  Guild: string;
-  UserId: string;
-  Date: number;
-  Place: number;
+export enum PollStatuses {
+  Unknown = 0, // avoid using default value for anything
+  PrePoll = 1, // asking for suggestions
+  Polling = 2, // asking for votes
+  Closed = 3, // voting has closed, wait for next poll
 }
 
-interface DailyStatusRequest {
+export interface GetCurrentWeekNumber {
   Guild: string;
-  Date: number;
 }
+
+export interface PollStatus {
+  Guild: string;
+  Status: PollStatuses;
+}
+
+export type GetPollStatus = Omit<PollStatus, "Status">;
+
+export type GetSuggestionsForWeek = Omit<
+  Suggestion,
+  "SuggestedByUserId" | "SuggestedByDisplayName" | "Name"
+>;
+
+export type GetAllActiveVotes = Omit<
+  GetActiveUserVotesForGame,
+  "VotedFor" | "UserId"
+>;
+export type GetActiveVotesForUser = Omit<GetActiveUserVotesForGame, "VotedFor">;
+
+export type GetActiveVotesForUserIgnoringSpecificGame =
+  GetActiveUserVotesForGame;
+
+export type DeleteVotesForGame = GetActiveUserVotesForGame;
+
+export type GetActiveUserVotesForGame = Omit<
+  Vote,
+  "DisplayName" | "PointTotal" | "VoteCount"
+>;

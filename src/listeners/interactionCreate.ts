@@ -19,7 +19,11 @@ const handleSlashCommand = async (
     return;
   }
 
-  // console.log(interaction);
-
-  slashCommand.run(client, interaction);
+  if (!interaction.guild) {
+    interaction.followUp({
+      content: "This bot can only be interacted with on a server!",
+    });
+  } else {
+    slashCommand.run(client, interaction);
+  }
 };

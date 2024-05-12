@@ -1,4 +1,18 @@
 import { Database } from "sqlite3";
+import {
+  DeleteVotesForGame,
+  GetActiveUserVotesForGame,
+  GetActiveVotesForUser,
+  GetActiveVotesForUserIgnoringSpecificGame,
+  GetAllActiveVotes,
+  GetCurrentWeekNumber,
+  GetPollStatus,
+  GetSuggestionsForWeek,
+  PollStatus,
+  PollStatuses,
+  Suggestion,
+  Vote,
+} from "./dbModels";
 
 const filepath = "./database/store.db";
 const db = getConnection();
@@ -15,87 +29,55 @@ function getConnection() {
 
 export function resetDbFile() {
   db.exec(
-    `DROP TABLE IF EXISTS Players;
+    `DROP TABLE IF EXISTS Votes;
     CREATE TABLE Votes
     (
         Guild VARCHAR(50) NOT NULL,
         UserId VARCHAR(50) NOT NULL,
         DisplayName VARCHAR(50) NOT NULL,
         VotedFor VARCHAR(400) NOT NULL,
-        PointTotal INTEGER NOT NULL,
-        PRIMARY KEY (Guild, UserId)
+        VoteCount INTEGER NOT NULL,
+        WeekNumber INTEGER NOT NULL,
+        PRIMARY KEY (Guild, UserId, WeekNumber, VotedFor)
     );`.trim()
   );
+
   db.exec(
-    `DROP TABLE IF EXISTS GuildConfigurations;
-    CREATE TABLE GuildConfigurations
-    (
-        Guild VARCHAR(50) PRIMARY KEY,
-        TargetChannelId VARCHAR(50) NULL,
-        Timezone VARCHAR(50) NULL
-    );`.trim()
-  );
-  db.exec(
-    `DROP TABLE IF EXISTS DailyStatus;
-    CREATE TABLE DailyStatus
+    `DROP TABLE IF EXISTS Suggestions;
+    CREATE TABLE Suggestions
     (
         Guild VARCHAR(50) NOT NULL,
-        Date INTEGER NOT NULL,
-        UserId VARCHAR(50) NOT NULL,
-        DisplayName VARCHAR(50) NOT NULL,
-        Place INTEGER NOT NULL,
-        PRIMARY KEY (Guild, Date, UserId)
+        SuggestedByUserId VARCHAR(50) NOT NULL,
+        SuggestedByDisplayName VARCHAR(50) NOT NULL,
+        Name VARCHAR(400) NOT NULL,
+        WeekNumber INTEGER NOT NULL,
+        PRIMARY KEY (Guild, SuggestedByUserId, Name, WeekNumber)
+    );`.trim()
+  );
+
+  db.exec(
+    `DROP TABLE IF EXISTS PollStatuses;
+    CREATE TABLE PollStatuses
+    (
+        Guild VARCHAR(50) NOT NULL,
+        Status INTEGER NOT NULL,
+        PRIMARY KEY (Guild)
     );`.trim()
   );
 }
 
-export function getPlayerStats(params: UserData): Promise<PlayerData> {
-  return new Promise<PlayerData>((resolve, reject) => {
-    db.get<PlayerData>(
-      `SELECT Guild, UserId, DisplayName, WinTotal, PointTotal 
-       FROM Players
-       WHERE Guild = $guild
-        AND UserId = $userid`,
-      {
-        $guild: params.Guild,
-        $userid: params.UserId,
-      },
-      (error, row) => {
-        if (error) {
-          reject(error.message);
-        } else {
-          resolve(row);
-        }
-      }
-    );
-  });
-}
-
-export function GetDefaultGuildConfig(guild: string): GuildConfiguration {
-  return {
-    Guild: guild,
-    TargetChannelId: undefined,
-    Timezone: "UTC",
-  };
-}
-
-export function getGuildConfig(guild: string): Promise<GuildConfiguration> {
-  console.log("fetched from db");
-  return new Promise<GuildConfiguration>((resolve, reject) => {
-    db.get<GuildConfiguration>(
-      `SELECT Guild, TargetChannelId, Timezone
-       FROM GuildConfigurations
+export async function getPollStatus(params: GetPollStatus): Promise<number> {
+  return new Promise<PollStatuses>((resolve, reject) => {
+    db.get<PollStatuses>(
+      `SELECT Status
+       FROM PollStatuses
        WHERE Guild = $guild`,
       {
-        $guild: guild,
+        $guild: params.Guild,
       },
       (error, row) => {
         if (error) {
           reject(error.message);
-        } else if (!row) {
-          const config = GetDefaultGuildConfig(guild);
-          saveGuildConfig(config);
-          resolve(config);
         } else {
           resolve(row);
         }
@@ -104,99 +86,33 @@ export function getGuildConfig(guild: string): Promise<GuildConfiguration> {
   });
 }
 
-export function saveGuildConfig(data: GuildConfiguration) {
+export function savePollStatus(data: PollStatus) {
   db.run(
-    `INSERT INTO GuildConfigurations (Guild, TargetChannelId, Timezone)
-  VALUES($guild, $targetChannelId, $timezone)
+    `INSERT INTO PollStatuses (Guild, Status)
+  VALUES($guild, $status)
   ON CONFLICT(Guild) DO UPDATE SET
-    TargetChannelId = $targetChannelId,
-    Timezone = $timezone
+    Status = $status
   WHERE Guild = $guild`,
     {
       $guild: data.Guild,
-      $targetChannelId: data.TargetChannelId,
-      $timezone: data.Timezone,
+      $status: data.Status,
     }
   );
 }
 
-export async function getAllPlayerData(guild: string): Promise<PlayerData[]> {
-  return new Promise<PlayerData[]>((resolve, reject) => {
-    const results: PlayerData[] = [];
-    db.each<PlayerData>(
-      `SELECT Guild, UserId, DisplayName, WinTotal, PointTotal 
-         FROM Players
-         WHERE Guild = $guild
-         ORDER BY PointTotal DESC
-         LIMIT 10`,
-      { $guild: guild },
-      (error, row) => {
-        if (error) {
-          console.log("errored:");
-          console.error(error.message);
-          reject(error.message);
-        } else {
-          results.push(row);
-        }
-      },
-      () => {
-        resolve(results);
-      }
-    );
-  });
-}
-
-export function addPlayerPoints(data: AddPlayerPointsRequest) {
-  db.run(
-    `INSERT INTO DailyStatus (Guild, Date, UserId, DisplayName, Place)
-  VALUES($guild, $date, $userid, $displayName, $place)
-  ON CONFLICT(Guild, Date, UserId) DO UPDATE SET
-    DisplayName = $displayName,
-    Place = $place
-  WHERE Guild = $guild
-  AND Date = $date
-  AND UserId = $userid;`,
-    {
-      $guild: data.Guild,
-      $userid: data.UserId,
-      $date: data.Date,
-      $displayName: data.DisplayName,
-      $place: data.Place,
-    }
-  );
-
-  db.run(
-    `INSERT INTO Players (Guild, UserId, DisplayName, WinTotal, PointTotal)
-  VALUES($guild, $userid, $displayName, $winPoints, $points)
-  ON CONFLICT(Guild, UserId) DO UPDATE SET
-    DisplayName = $displayName,
-    WinTotal = WinTotal + $winPoints,
-    PointTotal = PointTotal + $points
-  WHERE Guild = $guild
-  AND UserId = $userid;`,
-    {
-      $guild: data.Guild,
-      $userid: data.UserId,
-      $displayName: data.DisplayName,
-      $winPoints: data.Winner ? 1 : 0,
-      $points: data.Points,
-    }
-  );
-}
-
-export function getDailyStatus(
-  params: DailyStatusRequest
-): Promise<DailyStatus[]> {
-  return new Promise<DailyStatus[]>((resolve, reject) => {
-    const output: DailyStatus[] = [];
-    db.each<DailyStatus>(
-      `SELECT Guild, UserId, Date, Place
-       FROM DailyStatus
+export async function getSuggestionsForWeek(
+  params: GetSuggestionsForWeek
+): Promise<Suggestion[]> {
+  return new Promise<Suggestion[]>((resolve, reject) => {
+    const output: Suggestion[] = [];
+    db.each<Suggestion>(
+      `SELECT Guild, SuggestedByUserId, SuggestedByDisplayName, Name, WeekNumber
+       FROM Suggestions
        WHERE Guild = $guild
-          AND Date = $date`,
+         AND WeekNumber = $weeknumber`,
       {
         $guild: params.Guild,
-        $date: params.Date,
+        $weeknumber: params.WeekNumber,
       },
       (error, row) => {
         if (error) {
@@ -210,4 +126,203 @@ export function getDailyStatus(
       }
     );
   });
+}
+
+export async function getCurrentWeekNumber(
+  params: GetCurrentWeekNumber
+): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    db.get<number>(
+      `SELECT MAX(WeekNumber)
+       FROM Suggestions
+       WHERE Guild = $guild`,
+      {
+        $guild: params.Guild,
+      },
+      (error, row) => {
+        if (error) {
+          reject(error.message);
+        } else {
+          resolve(row);
+        }
+      }
+    );
+  });
+}
+
+export async function getAllActiveVotes(
+  params: GetAllActiveVotes
+): Promise<Vote[]> {
+  return new Promise<Vote[]>((resolve, reject) => {
+    const output: Vote[] = [];
+    db.each<Vote>(
+      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, WeekNumber
+       FROM Votes
+       WHERE Guild = $guild
+        AND WeekNumber = $weeknumber`,
+      {
+        $guild: params.Guild,
+        $weeknumber: params.WeekNumber,
+      },
+      (error, row) => {
+        if (error) {
+          reject(error.message);
+        } else if (row) {
+          output.push(row);
+        }
+      },
+      () => {
+        resolve(output);
+      }
+    );
+  });
+}
+
+export async function getActiveVotesForUser(
+  params: GetActiveVotesForUser
+): Promise<Vote[]> {
+  return new Promise<Vote[]>((resolve, reject) => {
+    const output: Vote[] = [];
+    db.each<Vote>(
+      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, WeekNumber
+       FROM Votes
+       WHERE Guild = $guild
+        AND UserId = $userid
+        AND WeekNumber = $weeknumber`,
+      {
+        $guild: params.Guild,
+        $userid: params.UserId,
+        $weeknumber: params.WeekNumber,
+      },
+      (error, row) => {
+        if (error) {
+          reject(error.message);
+        } else if (row) {
+          output.push(row);
+        }
+      },
+      () => {
+        resolve(output);
+      }
+    );
+  });
+}
+
+export async function getActiveVotesForUserIgnoringSpecificGame(
+  params: GetActiveVotesForUserIgnoringSpecificGame
+): Promise<Vote[]> {
+  return new Promise<Vote[]>((resolve, reject) => {
+    const output: Vote[] = [];
+    db.each<Vote>(
+      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, WeekNumber
+       FROM Votes
+       WHERE Guild = $guild
+        AND UserId = $userid
+        AND WeekNumber = $weeknumber
+        AND VotedFor != $votedfor`,
+      {
+        $guild: params.Guild,
+        $userid: params.UserId,
+        $weeknumber: params.WeekNumber,
+        $votedfor: params.VotedFor,
+      },
+      (error, row) => {
+        if (error) {
+          reject(error.message);
+        } else if (row) {
+          output.push(row);
+        }
+      },
+      () => {
+        resolve(output);
+      }
+    );
+  });
+}
+
+export async function getActiveUserVotesForGame(
+  params: GetActiveUserVotesForGame
+): Promise<Vote> {
+  return new Promise<Vote>((resolve, reject) => {
+    db.get<Vote>(
+      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, WeekNumber
+       FROM Votes
+       WHERE Guild = $guild
+        AND UserId = $userid
+        AND WeekNumber = $weeknumber
+        AND VotedFor = $votedfor`,
+      {
+        $guild: params.Guild,
+        $userid: params.UserId,
+        $weeknumber: params.WeekNumber,
+        $votedfor: params.VotedFor,
+      },
+      (error, row) => {
+        if (error) {
+          reject(error.message);
+        } else {
+          resolve(row);
+        }
+      }
+    );
+  });
+}
+
+export function saveVote(data: Vote) {
+  db.run(
+    `INSERT INTO Votes (Guild, UserId, DisplayName, VotedFor, VoteCount, WeekNumber)
+  VALUES($guild, $userid, $displayname, $votedfor, $votecount, $weeknumber)
+  ON CONFLICT(Guild, UserId, VotedFor, WeekNumber) DO UPDATE SET
+    DisplayName = $displayname
+    VoteCount = $votecount,
+  WHERE Guild = $guild`,
+    {
+      $guild: data.Guild,
+      $userid: data.UserId,
+      $displayname: data.DisplayName,
+      $votedfor: data.VotedFor,
+      $votecount: data.VoteCount,
+      $weeknumber: data.WeekNumber,
+    }
+  );
+
+  db.run(
+    `UPDATE Votes
+     SET DisplayName = $displayname
+     WHERE Guild = $guild
+       AND UserId = $userid`,
+    {
+      $guild: data.Guild,
+      $userid: data.UserId,
+      $displayname: data.DisplayName,
+    }
+  );
+
+  db.run(
+    `UPDATE Suggestions
+     SET DisplayName = $displayname
+     WHERE Guild = $guild
+       AND SuggestedByUserId = $userid`,
+    {
+      $guild: data.Guild,
+      $userid: data.UserId,
+      $displayname: data.DisplayName,
+    }
+  );
+}
+
+export function deleteVotesForGame(data: DeleteVotesForGame) {
+  db.run(
+    `DELETE FROM Votes
+     WHERE Guild = $guild
+       AND UserId = $userid
+       AND VotedFor = $votedfor
+       AND WeekNumber = $weeknumber`,
+    {
+      $guild: data.Guild,
+      $userid: data.UserId,
+      $votedfor: data.VotedFor,
+      $weeknumber: data.WeekNumber,
+    }
+  );
 }
