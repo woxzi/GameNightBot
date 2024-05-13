@@ -11,7 +11,8 @@ import {
   getPollStatus,
   getSuggestionsForWeek,
 } from "../data";
-import { PollStatuses, Suggestion, Vote } from "../dbModels";
+import { Suggestion, Vote } from "../dbModels";
+import { PollStatuses } from "../enums";
 
 export const Poll: Command = {
   name: "poll",

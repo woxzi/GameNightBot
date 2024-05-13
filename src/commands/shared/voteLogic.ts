@@ -11,8 +11,8 @@ import {
   ButtonInteraction,
 } from "discord.js";
 import appsettings from "../../appsettings.json";
-import { getPollStatus } from "src/data";
-import { PollStatuses } from "src/dbModels";
+import { getPollStatus } from "../../data";
+import { PollStatuses } from "../../enums";
 
 const gamesDropdownId = "vote.games";
 const votesDropdownId = "vote.numVotes";

@@ -9,10 +9,10 @@ import {
   GetPollStatus,
   GetSuggestionsForWeek,
   PollStatus,
-  PollStatuses,
   Suggestion,
   Vote,
 } from "./dbModels";
+import { PollStatuses } from "./enums";
 
 const filepath = "./database/store.db";
 const db = getConnection();

@@ -18,7 +18,7 @@
     "sourceMap": false,
     "baseUrl": "./"
   },
-  "files": ["src/Bot.ts", "src/dbModels.d.ts"],
+  "files": ["src/Bot.ts", "src/dbModels.d.ts", "src/enums.d.ts"],
   "include": ["./**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,3 +1,5 @@
+import { PollStatuses } from "./enums";
+
 export interface Vote {
   Guild: string;
   UserId: string;
@@ -13,13 +15,6 @@ export interface Suggestion {
   SuggestedByDisplayName: string;
   Name: string;
   WeekNumber: number;
-}
-
-export enum PollStatuses {
-  Unknown = 0, // avoid using default value for anything
-  PrePoll = 1, // asking for suggestions
-  Polling = 2, // asking for votes
-  Closed = 3, // voting has closed, wait for next poll
 }
 
 export interface GetCurrentWeekNumber {
