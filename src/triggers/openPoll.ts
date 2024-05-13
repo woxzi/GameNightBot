@@ -1,7 +1,7 @@
 import { Client, TextChannel } from "discord.js";
 import appsettings from "../appsettings.json";
-import { getCurrentWeekNumber, savePollStatus } from "src/data";
-import { PollStatuses } from "src/enums";
+import { getCurrentWeekNumber, savePollStatus } from "../data";
+import { PollStatuses } from "../enums";
 
 export default async function (client: Client) {
   console.log("Opening Poll...");
@@ -13,7 +13,7 @@ export default async function (client: Client) {
     Status: PollStatuses.Polling,
   });
 
-  let message = "# Game Night";
+  let message = "# Game Night\n";
   message +=
     "The poll is now accepting votes. Please cast your vote using the `/vote` command. Votes will be accepted until Thursday afternoon.";
 

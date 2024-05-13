@@ -1,7 +1,7 @@
 import { Client, TextChannel } from "discord.js";
 import appsettings from "../appsettings.json";
-import { getCurrentWeekNumber, savePollStatus } from "src/data";
-import { PollStatuses } from "src/enums";
+import { getCurrentWeekNumber, savePollStatus } from "../data";
+import { PollStatuses } from "../enums";
 
 export default async function (client: Client) {
   console.log("Opening Pre-Poll...");
@@ -13,9 +13,9 @@ export default async function (client: Client) {
     Status: PollStatuses.PrePoll,
   });
 
-  let message = "# Game Night";
+  let message = "# Game Night\n";
   message +=
-    "The poll is now accepting activity suggestions. Please suggest activites for Friday night using the `/vote` command. Votes will be accepted until Wednesday morning.";
+    "The poll is now accepting activity suggestions. Please suggest activites for Friday night using the `/suggest` command. Suggestions will be accepted until Wednesday morning.";
 
   const channel = client.channels.cache.get(appsettings.appConfig.channel);
   (channel as TextChannel).send(message);

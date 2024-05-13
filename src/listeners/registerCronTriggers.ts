@@ -1,9 +1,9 @@
 import { Client } from "discord.js";
 import { CronJob } from "cron";
 import appsettings from "../appsettings.json";
-import openPoll from "src/triggers/openPoll";
-import closePoll from "src/triggers/closePoll";
-import openPrePoll from "src/triggers/openPrePoll";
+import openPoll from "../triggers/openPoll";
+import closePoll from "../triggers/closePoll";
+import openPrePoll from "../triggers/openPrePoll";
 
 export default (client: Client) => {
   const jobs = [

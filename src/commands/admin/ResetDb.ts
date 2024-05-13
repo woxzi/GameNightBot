@@ -4,9 +4,9 @@ import {
   ApplicationCommandType,
   PermissionFlagsBits,
 } from "discord.js";
-import { Command } from "../Command";
-import { resetDbFile } from "../data";
-import appsettings from "../appsettings.json";
+import { Command } from "../../Command";
+import { resetDbFile } from "../../data";
+import appsettings from "../../appsettings.json";
 
 export const ResetDb: Command = {
   name: "reset_database",
