@@ -6,13 +6,15 @@ import {
   GetActiveVotesForUserIgnoringSpecificGame,
   GetAllActiveVotes,
   GetCurrentWeekNumber,
+  GetCurrentWeekNumberResponse,
   GetPollStatus,
+  GetPollStatusResult,
   GetSuggestionsForWeek,
   PollStatus,
   Suggestion,
   Vote,
 } from "./dbModels";
-import { PollStatuses } from "./enums";
+import { PollStatusResult, PollStatuses } from "./enums";
 
 const filepath = "./database/store.db";
 const db = getConnection();
@@ -61,14 +63,47 @@ export function resetDbFile() {
     (
         Guild VARCHAR(50) NOT NULL,
         Status INTEGER NOT NULL,
+        ActiveWeek INTEGER NOT NULL,
         PRIMARY KEY (Guild)
     );`.trim()
   );
 }
 
+export function saveSuggestion(data: Suggestion) {
+  db.run(
+    `INSERT INTO Suggestions (Guild, SuggestedByUserId, SuggestedByDisplayName, Name, WeekNumber)
+     VALUES($guild, $userid, $displayname, $name, $weeknumber)`,
+    {
+      $guild: data.Guild,
+      $userid: data.SuggestedByUserId,
+      $displayname: data.SuggestedByDisplayName,
+      $name: data.Name,
+      $weeknumber: data.WeekNumber,
+    }
+  );
+}
+
 export async function getPollStatus(params: GetPollStatus): Promise<number> {
-  return new Promise<PollStatuses>((resolve, reject) => {
-    db.get<PollStatuses>(
+  const result = await getPollStatusInternal(params);
+  if (result) {
+    return result.Status;
+  } else {
+    console.log("Setting initial poll status");
+    await savePollStatus({
+      Guild: params.Guild,
+      Status: PollStatuses.PrePoll,
+      ActiveWeek: 1,
+    });
+
+    return PollStatuses.PrePoll as number;
+  }
+}
+
+async function getPollStatusInternal(
+  params: GetPollStatus
+): Promise<GetPollStatusResult> {
+  return new Promise<GetPollStatusResult>((resolve, reject) => {
+    db.get<GetPollStatusResult>(
       `SELECT Status
        FROM PollStatuses
        WHERE Guild = $guild`,
@@ -88,14 +123,16 @@ export async function getPollStatus(params: GetPollStatus): Promise<number> {
 
 export function savePollStatus(data: PollStatus) {
   db.run(
-    `INSERT INTO PollStatuses (Guild, Status)
-  VALUES($guild, $status)
+    `INSERT INTO PollStatuses (Guild, Status, ActiveWeek)
+  VALUES($guild, $status, $activeweek)
   ON CONFLICT(Guild) DO UPDATE SET
-    Status = $status
+    Status = $status,
+    ActiveWeek = $activeweek
   WHERE Guild = $guild`,
     {
       $guild: data.Guild,
       $status: data.Status,
+      $activeweek: data.ActiveWeek,
     }
   );
 }
@@ -132,9 +169,9 @@ export async function getCurrentWeekNumber(
   params: GetCurrentWeekNumber
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    db.get<number>(
-      `SELECT MAX(WeekNumber)
-       FROM Suggestions
+    db.get<GetCurrentWeekNumberResponse>(
+      `SELECT MAX(ActiveWeek) AS WeekNumber
+       FROM PollStatuses
        WHERE Guild = $guild`,
       {
         $guild: params.Guild,
@@ -143,7 +180,7 @@ export async function getCurrentWeekNumber(
         if (error) {
           reject(error.message);
         } else {
-          resolve(row);
+          resolve(row.WeekNumber);
         }
       }
     );
@@ -273,8 +310,8 @@ export function saveVote(data: Vote) {
     `INSERT INTO Votes (Guild, UserId, DisplayName, VotedFor, VoteCount, WeekNumber)
   VALUES($guild, $userid, $displayname, $votedfor, $votecount, $weeknumber)
   ON CONFLICT(Guild, UserId, VotedFor, WeekNumber) DO UPDATE SET
-    DisplayName = $displayname
-    VoteCount = $votecount,
+    DisplayName = $displayname,
+    VoteCount = $votecount
   WHERE Guild = $guild`,
     {
       $guild: data.Guild,
@@ -300,7 +337,7 @@ export function saveVote(data: Vote) {
 
   db.run(
     `UPDATE Suggestions
-     SET DisplayName = $displayname
+     SET SuggestedByDisplayName = $displayname
      WHERE Guild = $guild
        AND SuggestedByUserId = $userid`,
     {

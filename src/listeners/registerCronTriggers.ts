@@ -1,17 +1,32 @@
 import { Client } from "discord.js";
 import { CronJob } from "cron";
 import appsettings from "../appsettings.json";
-import PostPollMessage from "../PostPollMessage";
+import openPoll from "src/triggers/openPoll";
+import closePoll from "src/triggers/closePoll";
+import openPrePoll from "src/triggers/openPrePoll";
 
 export default (client: Client) => {
-  console.log(appsettings.pollConfig.cronString);
-
   const jobs = [
     CronJob.from({
-      cronTime: appsettings.pollConfig.cronString,
+      cronTime: appsettings.cronConfig.openPrePoll,
       onTick: function () {
-        console.log("Cron job triggered.");
-        PostPollMessage(client);
+        openPrePoll(client);
+      },
+      start: true,
+      timeZone: appsettings.appConfig.timezone,
+    }),
+    CronJob.from({
+      cronTime: appsettings.cronConfig.openPoll,
+      onTick: function () {
+        openPoll(client);
+      },
+      start: true,
+      timeZone: appsettings.appConfig.timezone,
+    }),
+    CronJob.from({
+      cronTime: appsettings.cronConfig.closePoll,
+      onTick: function () {
+        closePoll(client);
       },
       start: true,
       timeZone: appsettings.appConfig.timezone,

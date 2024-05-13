@@ -11,10 +11,15 @@ import {
   ButtonInteraction,
 } from "discord.js";
 import appsettings from "../../appsettings.json";
-import { getPollStatus } from "../../data";
+import {
+  getCurrentWeekNumber,
+  getPollStatus,
+  getSuggestionsForWeek,
+  saveVote,
+} from "../../data";
 import { PollStatuses } from "../../enums";
 
-const gamesDropdownId = "vote.games";
+const activitiesDropdownId = "vote.activities";
 const votesDropdownId = "vote.numVotes";
 const voteSubmitUpvoteButtonId = "vote.submit.upvote";
 const voteSubmitDownvoteButtonId = "vote.submit.downvote";
@@ -31,7 +36,7 @@ const gamesForTesting = [
   "Among Us",
   "Team Fortress 2",
   "Overwatch",
-  "Tabletop Simulator Game",
+  "Tabletop Simulator",
   "Terraria",
   "Satisfactory",
   "Element TD",
@@ -66,7 +71,7 @@ export default async ({
     return;
   }
 
-  const games = getGamesList();
+  const activities = (await getActivitiesList(interaction)).map((x) => x.Name);
   const maxVotes = getMaxVotes(voteType);
 
   const formState: VoteFormState = {
@@ -78,7 +83,7 @@ export default async ({
     ephemeral: true,
     content: getMessageContent(formState),
     components: getComponentRows({
-      games,
+      activities,
       maxVotes,
       numVotes,
       voteType,
@@ -91,12 +96,11 @@ export default async ({
   });
 
   dropdownCollector.on("collect", (i) => {
-    console.log("collected");
     if (
       i.user.id == response1.interaction.user.id &&
       i.channelId == response1.interaction.channelId
     ) {
-      if (i.customId === gamesDropdownId) {
+      if (i.customId === activitiesDropdownId) {
         formState.game = i.values[0];
       } else if (i.customId === votesDropdownId) {
         formState.votes = Number(i.values[0]);
@@ -105,7 +109,7 @@ export default async ({
       i.update({
         content: getMessageContent(formState),
         components: getComponentRows({
-          games,
+          activities,
           maxVotes,
           numVotes,
           voteType,
@@ -119,8 +123,8 @@ export default async ({
     componentType: ComponentType.Button,
   });
 
-  buttonCollector.on("collect", (i) => {
-    HandleSubmit(formState, i);
+  buttonCollector.on("collect", async (i) => {
+    await HandleSubmit(formState, i);
     i.update({
       content: getSubmittedMessageContent(),
       components: [],
@@ -128,7 +132,7 @@ export default async ({
   });
 };
 
-function HandleSubmit(
+async function HandleSubmit(
   formState: VoteFormState,
   interaction: ButtonInteraction<CacheType>
 ) {
@@ -150,6 +154,16 @@ function HandleSubmit(
       formState.votes
     }${voteArrow} for ${formState.game}`
   );
+  saveVote({
+    Guild: interaction.guildId as string,
+    DisplayName: interaction.user.displayName,
+    UserId: formState.userId,
+    VoteCount: formState.votes,
+    VotedFor: formState.game as string,
+    WeekNumber: await getCurrentWeekNumber({
+      Guild: interaction.guildId as string,
+    }),
+  });
 }
 
 export enum VoteType {
@@ -177,17 +191,20 @@ function getNumVotesDropdown(maxVotes: number, initialValue?: number) {
   return output;
 }
 
-function getGamesDropdown(games: Array<string>, initialValue?: string) {
+function getActivitiesDropdown(
+  activities: Array<string>,
+  initialValue?: string
+) {
   var output = new StringSelectMenuBuilder()
-    .setCustomId(gamesDropdownId)
-    .setPlaceholder("Select the game you want to vote for...");
+    .setCustomId(activitiesDropdownId)
+    .setPlaceholder("Select the activity you want to vote for...");
 
-  for (const game of games) {
+  for (const activity of activities) {
     const option = new StringSelectMenuOptionBuilder()
-      .setLabel(game)
-      .setValue(game);
+      .setLabel(activity)
+      .setValue(activity);
 
-    if (game === initialValue) {
+    if (activity === initialValue) {
       option.setDefault(true);
     }
 
@@ -256,12 +273,15 @@ function getMaxVotes(voteType?: VoteType) {
   return maxVotes;
 }
 
-function getGamesList() {
-  return gamesForTesting;
+async function getActivitiesList(interaction: CommandInteraction<CacheType>) {
+  return await getSuggestionsForWeek({
+    Guild: interaction.guildId as string,
+    WeekNumber: 1,
+  });
 }
 
 interface GetComponentRowsParams {
-  games: Array<string>;
+  activities: Array<string>;
   maxVotes: number;
   numVotes?: number;
   voteType?: VoteType;
@@ -298,14 +318,14 @@ function shouldDisableDownvoteButton(formState: VoteFormState): boolean {
 }
 
 function getComponentRows({
-  games,
+  activities,
   maxVotes,
   numVotes,
   voteType,
   formState,
 }: GetComponentRowsParams) {
   const row1 = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-    getGamesDropdown(games, formState.game)
+    getActivitiesDropdown(activities, formState.game)
   );
 
   const row2 = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(

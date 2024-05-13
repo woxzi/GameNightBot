@@ -21,12 +21,18 @@ export interface GetCurrentWeekNumber {
   Guild: string;
 }
 
+export interface GetCurrentWeekNumberResponse {
+  WeekNumber: number;
+}
+
 export interface PollStatus {
   Guild: string;
   Status: PollStatuses;
+  ActiveWeek: number;
 }
 
-export type GetPollStatus = Omit<PollStatus, "Status">;
+export type GetPollStatus = Omit<PollStatus, "Status", "ActiveWeek">;
+export type GetPollStatusResult = Omit<PollStatus, "Guild", "ActiveWeek">;
 
 export type GetSuggestionsForWeek = Omit<
   Suggestion,

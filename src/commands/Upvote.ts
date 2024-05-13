@@ -6,7 +6,7 @@ import {
 } from "discord.js";
 import { Command } from "../Command";
 
-import VoteLogic, { VoteType } from "./shared/VoteLogic";
+import VoteLogic, { VoteType } from "./shared/voteLogic";
 
 export const Upvote: Command = {
   name: "upvote",

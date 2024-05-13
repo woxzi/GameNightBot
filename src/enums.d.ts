@@ -7,3 +7,9 @@ export const enum PollStatuses {
   Polling = 2, // asking for votes
   Closed = 3, // voting has closed, wait for next poll
 }
+
+export type PollStatusResult =
+  | PollStatuses.Unknown
+  | PollStatuses.Closed
+  | PollStatuses.Polling
+  | PollStatuses.PrePoll;

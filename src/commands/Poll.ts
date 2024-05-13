@@ -27,11 +27,8 @@ export const Poll: Command = {
       Guild: guild,
     });
 
-    let content: string = `## Current Status for Game Nights At ${interaction.guild?.name}:\n`;
-    if (!!pollStatus || pollStatus === PollStatuses.Closed) {
-      // - if closed, send generic message
-      content = GetPollClosedMessage();
-    } else if (pollStatus === PollStatuses.PrePoll) {
+    let content: string = ""; //`## Current Status for Game Nights At ${interaction.guild?.name}:\n`;
+    if (pollStatus === PollStatuses.PrePoll) {
       // - if pre-poll, get suggestions
       var suggestions = await getSuggestionsForWeek({
         Guild: guild,
@@ -39,6 +36,14 @@ export const Poll: Command = {
       });
 
       content += GetPrePollMessage(suggestions);
+    } else if (pollStatus === PollStatuses.Closed) {
+      // - if closed, get votes
+      var activeVotes = await getAllActiveVotes({
+        Guild: guild,
+        WeekNumber: weekNumber,
+      });
+
+      content = GetPollClosedMessage(activeVotes);
     } else if (pollStatus === PollStatuses.Polling) {
       // - if poll, get votes
       var activeVotes = await getAllActiveVotes({
@@ -58,30 +63,14 @@ export const Poll: Command = {
   },
 };
 
-function GetPollClosedMessage() {
-  return (
-    "## Poll Closed\n" +
-    "This poll is closed. Please check back later for when the next poll opens."
-  );
-}
-
-function GetFailureMessage() {
-  return "Something went wrong.";
-}
-
-function GetPrePollMessage(suggestions: Suggestion[]) {
-  let message =
-    "### Accepting Activity Suggestions\n" + "***Current Suggestions:***\n";
-  for (const suggestion of suggestions) {
-    message += `- ${ToTitleCaseUpperOnly(suggestion.Name)}\n`;
+function GetPollClosedMessage(activeVotes: Vote[]) {
+  let message = "### Poll Closed\n";
+  if (activeVotes.length > 0) {
+    message += "***Previous Poll Results:***\n";
+  } else {
+    message +=
+      "No votes have been cast for this poll yet. Add yours using `/vote`!\n";
   }
-
-  return message;
-}
-
-function GetPollingMessage(activeVotes: Vote[]) {
-  let message =
-    "### Accepting Votes for Activities\n" + "***Current Votes:***\n";
 
   const voteTotals: { [Key: string]: number } = {};
   for (const vote of activeVotes) {
@@ -109,8 +98,58 @@ function GetPollingMessage(activeVotes: Vote[]) {
   return message;
 }
 
-function ToTitleCaseUpperOnly(str: string): string {
-  return str.replace(/\w\S*/g, function (txt) {
-    return txt.charAt(0).toUpperCase() + txt.substring(1);
-  });
+function GetFailureMessage() {
+  return "Something went wrong.";
+}
+
+function GetPrePollMessage(suggestions: Suggestion[]) {
+  let message = "### Accepting Activity Suggestions\n";
+
+  if (suggestions.length === 0) {
+    return (
+      message + "No suggestions have been made yet. Use `/suggest` to add one!`"
+    );
+  }
+
+  message += "***Current Suggestions:***\n";
+  for (const suggestion of suggestions) {
+    message += `- ${suggestion.Name}\n`;
+  }
+
+  return message;
+}
+
+function GetPollingMessage(activeVotes: Vote[]) {
+  let message = "### Accepting Votes for Activities\n";
+  if (activeVotes.length > 0) {
+    message += "***Current Votes:***\n";
+  } else {
+    message +=
+      "No votes have been cast for this poll yet. Add yours using `/vote`!\n";
+  }
+
+  const voteTotals: { [Key: string]: number } = {};
+  for (const vote of activeVotes) {
+    if (vote.VotedFor in activeVotes) {
+      voteTotals[vote.VotedFor] += vote.VoteCount;
+    } else {
+      voteTotals[vote.VotedFor] = vote.VoteCount;
+    }
+  }
+
+  let maxDigits = 0;
+  for (var suggestionName in voteTotals) {
+    const length = voteTotals[suggestionName].toString().length;
+    if (length > maxDigits) {
+      maxDigits = length;
+    }
+  }
+
+  for (var suggestionName in voteTotals) {
+    const total = voteTotals[suggestionName];
+    const totalString = String(total).padStart(maxDigits, " ");
+    message += `- **[${totalString}]** - ${suggestionName}\n`;
+  }
+
+  return message;
 }
