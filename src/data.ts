@@ -39,6 +39,7 @@ export function resetDbFile() {
         DisplayName VARCHAR(50) NOT NULL,
         VotedFor VARCHAR(400) NOT NULL,
         VoteCount INTEGER NOT NULL,
+        VoteType INTEGER NOT NULL,
         WeekNumber INTEGER NOT NULL,
         PRIMARY KEY (Guild, UserId, WeekNumber, VotedFor)
     );`.trim()
@@ -146,7 +147,8 @@ export async function getSuggestionsForWeek(
       `SELECT Guild, SuggestedByUserId, SuggestedByDisplayName, Name, WeekNumber
        FROM Suggestions
        WHERE Guild = $guild
-         AND WeekNumber = $weeknumber`,
+         AND WeekNumber = $weeknumber
+       ORDER BY Name`,
       {
         $guild: params.Guild,
         $weeknumber: params.WeekNumber,
@@ -193,7 +195,7 @@ export async function getAllActiveVotes(
   return new Promise<Vote[]>((resolve, reject) => {
     const output: Vote[] = [];
     db.each<Vote>(
-      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, WeekNumber
+      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, VoteType, WeekNumber
        FROM Votes
        WHERE Guild = $guild
         AND WeekNumber = $weeknumber`,
@@ -221,7 +223,7 @@ export async function getActiveVotesForUser(
   return new Promise<Vote[]>((resolve, reject) => {
     const output: Vote[] = [];
     db.each<Vote>(
-      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, WeekNumber
+      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, VoteType, WeekNumber
        FROM Votes
        WHERE Guild = $guild
         AND UserId = $userid
@@ -251,7 +253,7 @@ export async function getActiveVotesForUserIgnoringSpecificGame(
   return new Promise<Vote[]>((resolve, reject) => {
     const output: Vote[] = [];
     db.each<Vote>(
-      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, WeekNumber
+      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, VoteType, WeekNumber
        FROM Votes
        WHERE Guild = $guild
         AND UserId = $userid
@@ -282,7 +284,7 @@ export async function getActiveUserVotesForGame(
 ): Promise<Vote> {
   return new Promise<Vote>((resolve, reject) => {
     db.get<Vote>(
-      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, WeekNumber
+      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, VoteType, WeekNumber
        FROM Votes
        WHERE Guild = $guild
         AND UserId = $userid
@@ -307,11 +309,12 @@ export async function getActiveUserVotesForGame(
 
 export function saveVote(data: Vote) {
   db.run(
-    `INSERT INTO Votes (Guild, UserId, DisplayName, VotedFor, VoteCount, WeekNumber)
-  VALUES($guild, $userid, $displayname, $votedfor, $votecount, $weeknumber)
+    `INSERT INTO Votes (Guild, UserId, DisplayName, VotedFor, VoteCount, VoteType, WeekNumber)
+  VALUES($guild, $userid, $displayname, $votedfor, $votecount, $votetype, $weeknumber)
   ON CONFLICT(Guild, UserId, VotedFor, WeekNumber) DO UPDATE SET
     DisplayName = $displayname,
-    VoteCount = $votecount
+    VoteCount = $votecount,
+    VoteType = $votetype
   WHERE Guild = $guild`,
     {
       $guild: data.Guild,
@@ -319,6 +322,7 @@ export function saveVote(data: Vote) {
       $displayname: data.DisplayName,
       $votedfor: data.VotedFor,
       $votecount: data.VoteCount,
+      $votetype: data.VoteType,
       $weeknumber: data.WeekNumber,
     }
   );

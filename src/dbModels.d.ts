@@ -1,3 +1,4 @@
+import { VoteType } from "./commands/shared/voteLogic";
 import { PollStatuses } from "./enums";
 
 export interface Vote {
@@ -7,6 +8,7 @@ export interface Vote {
   VotedFor: string;
   VoteCount: number;
   WeekNumber: number;
+  VoteType: VoteType;
 }
 
 export interface Suggestion {
@@ -52,5 +54,5 @@ export type DeleteVotesForGame = GetActiveUserVotesForGame;
 
 export type GetActiveUserVotesForGame = Omit<
   Vote,
-  "DisplayName" | "PointTotal" | "VoteCount"
+  "DisplayName" | "PointTotal" | "VoteCount" | "VoteType"
 >;

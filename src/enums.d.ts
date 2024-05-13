@@ -13,3 +13,9 @@ export type PollStatusResult =
   | PollStatuses.Closed
   | PollStatuses.Polling
   | PollStatuses.PrePoll;
+
+export const enum VoteType {
+  Unknown = 0,
+  Upvote = 1,
+  Downvote = 2,
+}

@@ -17,7 +17,8 @@ import {
   getSuggestionsForWeek,
   saveVote,
 } from "../../data";
-import { PollStatuses } from "../../enums";
+import { PollStatuses, VoteType } from "../../enums";
+import { Vote } from "../../dbModels";
 
 const activitiesDropdownId = "vote.activities";
 const votesDropdownId = "vote.numVotes";
@@ -138,7 +139,7 @@ async function HandleSubmit(
 ) {
   formState.votes ??= appsettings.pollConfig.defaultVotes;
 
-  let voteType: VoteType;
+  var voteType: VoteType = VoteType.Unknown;
   let voteArrow: string = "";
 
   if (interaction.customId === voteSubmitUpvoteButtonId) {
@@ -163,12 +164,8 @@ async function HandleSubmit(
     WeekNumber: await getCurrentWeekNumber({
       Guild: interaction.guildId as string,
     }),
+    VoteType: voteType,
   });
-}
-
-export enum VoteType {
-  Upvote = 1,
-  Downvote = 2,
 }
 
 function getNumVotesDropdown(maxVotes: number, initialValue?: number) {
@@ -367,4 +364,24 @@ function getMessageContent(formState: VoteFormState) {
 
 function getSubmittedMessageContent() {
   return "### *Your vote has been recorded.*";
+}
+
+export function getSortedVoteTotals(votes: Vote[]) {
+  const voteTotals: { [Key: string]: number } = {};
+  for (const vote of votes) {
+    const voteAmount =
+      vote.VoteType === VoteType.Upvote ? vote.VoteCount : -vote.VoteCount;
+
+    if (vote.VotedFor in voteTotals) {
+      voteTotals[vote.VotedFor] += voteAmount;
+    } else {
+      voteTotals[vote.VotedFor] = voteAmount;
+    }
+  }
+
+  let votesToSort: Array<[string, number]> = [];
+  for (const vote in voteTotals) {
+    votesToSort.push([vote, voteTotals[vote]]);
+  }
+  return votesToSort.sort((a, b) => b[1] - a[1]);
 }

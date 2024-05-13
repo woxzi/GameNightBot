@@ -15,7 +15,7 @@ export default async function (client: Client) {
 
   let message = "# Game Night\n";
   message +=
-    "The poll is now accepting activity suggestions. Please suggest activites for Friday night using the `/suggest` command. Suggestions will be accepted until Wednesday morning.";
+    "The poll is now accepting activity suggestions. Please suggest activites for Friday night using the `/suggest` command. Suggestions will be accepted until Wednesday morning.\n\n";
 
   const channel = client.channels.cache.get(appsettings.appConfig.channel);
   (channel as TextChannel).send(message);

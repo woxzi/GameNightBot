@@ -13,6 +13,10 @@ import {
 } from "../data";
 import { Suggestion, Vote } from "../dbModels";
 import { PollStatuses } from "../enums";
+import {
+  GetCurrentVotesMessageComponent,
+  GetSuggestionsMessageComponent,
+} from "./shared/messageComponents";
 
 export const Poll: Command = {
   name: "poll",
@@ -109,47 +113,19 @@ function GetPrePollMessage(suggestions: Suggestion[]) {
     return (
       message + "No suggestions have been made yet. Use `/suggest` to add one!`"
     );
+  } else {
+    return message + GetSuggestionsMessageComponent(suggestions);
   }
-
-  message += "***Current Suggestions:***\n";
-  for (const suggestion of suggestions) {
-    message += `- ${suggestion.Name}\n`;
-  }
-
-  return message;
 }
 
 function GetPollingMessage(activeVotes: Vote[]) {
   let message = "### Accepting Votes for Activities\n";
-  if (activeVotes.length > 0) {
-    message += "***Current Votes:***\n";
+  if (activeVotes.length <= 0) {
+    return (
+      message +
+      "No votes have been cast for this poll yet. Add yours using `/vote`!\n"
+    );
   } else {
-    message +=
-      "No votes have been cast for this poll yet. Add yours using `/vote`!\n";
+    return message + GetCurrentVotesMessageComponent(activeVotes);
   }
-
-  const voteTotals: { [Key: string]: number } = {};
-  for (const vote of activeVotes) {
-    if (vote.VotedFor in activeVotes) {
-      voteTotals[vote.VotedFor] += vote.VoteCount;
-    } else {
-      voteTotals[vote.VotedFor] = vote.VoteCount;
-    }
-  }
-
-  let maxDigits = 0;
-  for (var suggestionName in voteTotals) {
-    const length = voteTotals[suggestionName].toString().length;
-    if (length > maxDigits) {
-      maxDigits = length;
-    }
-  }
-
-  for (var suggestionName in voteTotals) {
-    const total = voteTotals[suggestionName];
-    const totalString = String(total).padStart(maxDigits, " ");
-    message += `- **[${totalString}]** - ${suggestionName}\n`;
-  }
-
-  return message;
 }
