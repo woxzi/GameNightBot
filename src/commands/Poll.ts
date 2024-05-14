@@ -44,7 +44,7 @@ export const Poll: Command = {
       // - if closed, get votes
       var activeVotes = await getAllActiveVotes({
         Guild: guild,
-        WeekNumber: weekNumber,
+        WeekNumber: weekNumber - 1,
       });
 
       content = GetPollClosedMessage(activeVotes);
@@ -70,36 +70,16 @@ export const Poll: Command = {
 function GetPollClosedMessage(activeVotes: Vote[]) {
   let message = "### Poll Closed\n";
   if (activeVotes.length > 0) {
-    message += "***Previous Poll Results:***\n";
+    return (
+      message +
+      GetCurrentVotesMessageComponent(activeVotes, "Previous Poll Results:")
+    );
   } else {
-    message +=
-      "No votes have been cast for this poll yet. Add yours using `/vote`!\n";
+    return (
+      message +
+      "No votes have been cast for this poll yet. Add yours using `/vote`!\n"
+    );
   }
-
-  const voteTotals: { [Key: string]: number } = {};
-  for (const vote of activeVotes) {
-    if (vote.VotedFor in activeVotes) {
-      voteTotals[vote.VotedFor] += vote.VoteCount;
-    } else {
-      voteTotals[vote.VotedFor] = vote.VoteCount;
-    }
-  }
-
-  let maxDigits = 0;
-  for (var suggestionName in voteTotals) {
-    const length = voteTotals[suggestionName].toString().length;
-    if (length > maxDigits) {
-      maxDigits = length;
-    }
-  }
-
-  for (var suggestionName in voteTotals) {
-    const total = voteTotals[suggestionName];
-    const totalString = String(total).padStart(maxDigits, " ");
-    message += `- **[${totalString}]** - ${suggestionName}\n`;
-  }
-
-  return message;
 }
 
 function GetFailureMessage() {

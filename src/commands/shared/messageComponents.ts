@@ -1,6 +1,7 @@
 import { Suggestion, Vote } from "../../dbModels";
 import { VoteType } from "../../enums";
 import { getSortedVoteTotals } from "./voteLogic";
+import appsettings from "../../appsettings.json";
 
 export function GetCurrentVotesMessageComponent(
   votes: Vote[],
@@ -36,4 +37,12 @@ export function GetSuggestionsMessageComponent(
   }
 
   return message;
+}
+
+export function PingRoleFooter() {
+  return `\n*You can unsubscribe from the <@&${appsettings.appConfig.roleId}> role and stop receiving pings by using the \`/leave\` command.*`;
+}
+
+export function GetVotesRemainingString(upvotes: number, downvotes: number) {
+  return `(${upvotes}↑, ${downvotes}↓ Remaining)`;
 }

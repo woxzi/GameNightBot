@@ -12,13 +12,15 @@ import {
 } from "discord.js";
 import appsettings from "../../appsettings.json";
 import {
+  getActiveVotesForUser,
   getCurrentWeekNumber,
   getPollStatus,
   getSuggestionsForWeek,
   saveVote,
 } from "../../data";
 import { PollStatuses, VoteType } from "../../enums";
-import { Vote } from "../../dbModels";
+import { GetActiveVotesForUser, Vote } from "../../dbModels";
+import { GetVotesRemainingString } from "./messageComponents";
 
 const activitiesDropdownId = "vote.activities";
 const votesDropdownId = "vote.numVotes";
@@ -45,14 +47,26 @@ const gamesForTesting = [
 
 // returns if validation step was successful
 async function DoValidation(
+  formState: VoteFormState,
   interaction: CommandInteraction<CacheType>
-): Promise<boolean> {
+): Promise<[boolean, string?]> {
   var status = await getPollStatus({ Guild: interaction.guildId as string });
 
   if (status !== PollStatuses.Polling) {
-    return false;
+    return [
+      false,
+      "The poll is not accepting votes right now. Please check back later.",
+    ];
   }
-  return true;
+
+  if (getMaxVotes(formState) <= 0) {
+    return [
+      false,
+      "You have no votes left! Use `/delete_vote` if you want to get rid of your existing votes.",
+    ];
+  }
+
+  return [true];
 }
 
 export default async ({
@@ -61,29 +75,48 @@ export default async ({
   voteType,
   numVotes,
 }: VoteLogicParams) => {
-  const validationSuccessful = await DoValidation(interaction);
+  const weekNumber = await getCurrentWeekNumber({
+    Guild: interaction.guildId as string,
+  });
+
+  const formState: VoteFormState = {
+    guild: interaction.guildId as string,
+    userId: interaction.user.id,
+    votes: numVotes,
+    weekNumber: weekNumber,
+    remainingUpvotes: await GetRemainingUpvotes({
+      Guild: interaction.guildId as string,
+      UserId: interaction.user.id,
+      WeekNumber: weekNumber,
+    }),
+    remainingDownvotes: await GetRemainingDownvotes({
+      Guild: interaction.guildId as string,
+      UserId: interaction.user.id,
+      WeekNumber: weekNumber,
+    }),
+  };
+
+  const [validationSuccessful, validationMessage] = await DoValidation(
+    formState,
+    interaction
+  );
   if (!validationSuccessful) {
     interaction.reply({
       ephemeral: true,
-      content:
-        "The poll is not accepting votes right now. Please check back later.",
+      content: validationMessage,
     });
 
     return;
   }
 
   const activities = (await getActivitiesList(interaction)).map((x) => x.Name);
-  const maxVotes = getMaxVotes(voteType);
 
-  const formState: VoteFormState = {
-    userId: interaction.user.id,
-    votes: numVotes,
-  };
+  const maxVotes = getMaxVotes(formState, voteType);
 
   const response1 = await interaction.reply({
     ephemeral: true,
-    content: getMessageContent(formState),
-    components: getComponentRows({
+    content: await getMessageContent(formState),
+    components: await getComponentRows({
       activities,
       maxVotes,
       numVotes,
@@ -96,7 +129,7 @@ export default async ({
     componentType: ComponentType.StringSelect,
   });
 
-  dropdownCollector.on("collect", (i) => {
+  dropdownCollector.on("collect", async (i) => {
     if (
       i.user.id == response1.interaction.user.id &&
       i.channelId == response1.interaction.channelId
@@ -108,8 +141,8 @@ export default async ({
       }
 
       i.update({
-        content: getMessageContent(formState),
-        components: getComponentRows({
+        content: await getMessageContent(formState),
+        components: await getComponentRows({
           activities,
           maxVotes,
           numVotes,
@@ -166,6 +199,19 @@ async function HandleSubmit(
     }),
     VoteType: voteType,
   });
+
+  // update vote states after submission
+  formState.remainingUpvotes = await GetRemainingUpvotes({
+    Guild: formState.guild,
+    UserId: formState.userId,
+    WeekNumber: formState.weekNumber,
+  });
+
+  formState.remainingDownvotes = await GetRemainingDownvotes({
+    Guild: formState.guild,
+    UserId: formState.userId,
+    WeekNumber: formState.weekNumber,
+  });
 }
 
 function getNumVotesDropdown(maxVotes: number, initialValue?: number) {
@@ -211,33 +257,33 @@ function getActivitiesDropdown(
   return output;
 }
 
-function getUpVoteButton(formState: VoteFormState) {
+async function getUpVoteButton(formState: VoteFormState) {
   const output = new ButtonBuilder()
     .setCustomId(voteSubmitUpvoteButtonId)
     .setLabel("↑")
     .setStyle(ButtonStyle.Success);
 
-  if (shouldDisableUpvoteButton(formState)) {
+  if (await shouldDisableUpvoteButton(formState)) {
     output.setDisabled(true);
   }
 
   return output;
 }
 
-function getDownVoteButton(formState: VoteFormState) {
+async function getDownVoteButton(formState: VoteFormState) {
   const output = new ButtonBuilder()
     .setCustomId(voteSubmitDownvoteButtonId)
     .setLabel("↓")
     .setStyle(ButtonStyle.Danger);
 
-  if (shouldDisableDownvoteButton(formState)) {
+  if (await shouldDisableDownvoteButton(formState)) {
     output.setDisabled(true);
   }
 
   return output;
 }
 
-function getSubmitButton(formState: VoteFormState, voteType: VoteType) {
+async function getSubmitButton(formState: VoteFormState, voteType: VoteType) {
   const output = new ButtonBuilder()
     .setLabel("Submit")
     .setStyle(ButtonStyle.Primary);
@@ -245,26 +291,26 @@ function getSubmitButton(formState: VoteFormState, voteType: VoteType) {
   if (voteType === VoteType.Upvote) {
     output
       .setCustomId(voteSubmitUpvoteButtonId)
-      .setDisabled(shouldDisableUpvoteButton(formState));
+      .setDisabled(await shouldDisableUpvoteButton(formState));
   } else if (voteType === VoteType.Downvote) {
     output
       .setCustomId(voteSubmitDownvoteButtonId)
-      .setDisabled(shouldDisableDownvoteButton(formState));
+      .setDisabled(await shouldDisableDownvoteButton(formState));
   }
 
   return output;
 }
 
-function getMaxVotes(voteType?: VoteType) {
+function getMaxVotes(formState: VoteFormState, voteType?: VoteType) {
   let maxVotes: number;
   if (voteType === VoteType.Upvote) {
-    maxVotes = appsettings.pollConfig.maxUpvotes;
+    maxVotes = formState.remainingUpvotes;
   } else if (voteType === VoteType.Downvote) {
-    maxVotes = appsettings.pollConfig.maxDownvotes;
+    maxVotes = formState.remainingDownvotes;
   } else {
     maxVotes = Math.max(
-      appsettings.pollConfig.maxUpvotes,
-      appsettings.pollConfig.maxDownvotes
+      formState.remainingUpvotes,
+      formState.remainingDownvotes
     );
   }
   return maxVotes;
@@ -286,18 +332,35 @@ interface GetComponentRowsParams {
 }
 
 interface VoteFormState {
+  guild: string;
   userId: string;
+  weekNumber: number;
+  remainingUpvotes: number;
+  remainingDownvotes: number;
   game?: string;
   votes?: number;
 }
 
-function GetRemainingUpvotes() {
-  // fill this out
-  return 6;
+async function GetTotalVotesOfType(votes: Vote[], voteType: VoteType) {
+  return votes
+    .filter((x) => x.VoteType === voteType)
+    .reduce((partialSum, x) => partialSum + x.VoteCount, 0);
 }
-function GetRemainingDownvotes() {
-  // fill this out
-  return 4;
+
+async function GetRemainingUpvotes(params: GetActiveVotesForUser) {
+  const votes = await getActiveVotesForUser(params);
+
+  const appliedVotes = await GetTotalVotesOfType(votes, VoteType.Upvote);
+
+  return appsettings.pollConfig.maxUpvotes - appliedVotes;
+}
+
+async function GetRemainingDownvotes(params: GetActiveVotesForUser) {
+  const votes = await getActiveVotesForUser(params);
+
+  const appliedVotes = await GetTotalVotesOfType(votes, VoteType.Downvote);
+
+  return appsettings.pollConfig.maxDownvotes - appliedVotes;
 }
 
 function isFormComplete(formState: VoteFormState): boolean {
@@ -306,15 +369,15 @@ function isFormComplete(formState: VoteFormState): boolean {
 
 function shouldDisableUpvoteButton(formState: VoteFormState): boolean {
   const votes = formState.votes ?? appsettings.pollConfig.defaultVotes;
-  return !isFormComplete(formState) || votes > GetRemainingUpvotes();
+  return !isFormComplete(formState) || votes > formState.remainingUpvotes;
 }
 
 function shouldDisableDownvoteButton(formState: VoteFormState): boolean {
   const votes = formState.votes ?? appsettings.pollConfig.defaultVotes;
-  return !isFormComplete(formState) || votes > GetRemainingDownvotes();
+  return !isFormComplete(formState) || votes > formState.remainingDownvotes;
 }
 
-function getComponentRows({
+async function getComponentRows({
   activities,
   maxVotes,
   numVotes,
@@ -329,35 +392,40 @@ function getComponentRows({
     getNumVotesDropdown(maxVotes, formState.votes ?? numVotes)
   );
 
-  const row3 = getButtonRow(formState);
+  const row3 = await getButtonRow(formState, voteType);
 
   return [row1, row2, row3];
 }
 
-function getButtonRow(formState: VoteFormState, voteType?: VoteType) {
+async function getButtonRow(formState: VoteFormState, voteType?: VoteType) {
   const output = new ActionRowBuilder<ButtonBuilder>();
   if (!!voteType) {
-    output.addComponents(getSubmitButton(formState, voteType));
+    output.addComponents(await getSubmitButton(formState, voteType));
   } else {
     output
-      .addComponents(getUpVoteButton(formState))
-      .addComponents(getDownVoteButton(formState));
+      .addComponents(await getUpVoteButton(formState))
+      .addComponents(await getDownVoteButton(formState));
   }
   return output;
 }
 
-function getMessageContent(formState: VoteFormState) {
+async function getMessageContent(formState: VoteFormState) {
   const prefix = "### ";
+  const votesRemaining = GetVotesRemainingString(
+    formState.remainingUpvotes,
+    formState.remainingDownvotes
+  );
   if (!formState.game) {
-    return prefix + "Please select a game to vote for.";
+    return prefix + `Please select a game to vote for. ${votesRemaining}`;
   } else if (
     !formState.votes ||
     formState.votes === appsettings.pollConfig.defaultVotes
   ) {
-    return prefix + `You are voting for *${formState.game}*`;
+    return prefix + `You are voting for *${formState.game}* ${votesRemaining}`;
   } else {
     return (
-      prefix + `You are voting ${formState.votes}x for *${formState.game}*`
+      prefix +
+      `You are voting ${formState.votes}x for *${formState.game}* ${votesRemaining}`
     );
   }
 }
