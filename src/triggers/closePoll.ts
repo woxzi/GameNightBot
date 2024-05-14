@@ -38,7 +38,7 @@ export default async function (client: Client) {
     WeekNumber: weekNumber,
   });
 
-  const topActivities = getSortedVoteTotals(votes)
+  const topActivities = getSortedVoteTotals(votes, suggestions)
     .slice(0, appsettings.pollConfig.suggestionsToKeep)
     .map((x) => x[0]);
 
@@ -55,7 +55,11 @@ export default async function (client: Client) {
   message +=
     "The poll is now closed. It will reopen for activity suggestions on Saturday morning.\n\n";
 
-  message += GetCurrentVotesMessageComponent(votes, "Voting Results:");
+  message += GetCurrentVotesMessageComponent(
+    votes,
+    suggestions,
+    "Voting Results:"
+  );
   message += PingRoleFooter();
 
   const channel = client.channels.cache.get(appsettings.appConfig.channel);

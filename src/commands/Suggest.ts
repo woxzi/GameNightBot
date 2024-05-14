@@ -5,7 +5,12 @@ import {
   ApplicationCommandOptionType,
 } from "discord.js";
 import { Command } from "../Command";
-import { getCurrentWeekNumber, getPollStatus, saveSuggestion } from "../data";
+import {
+  getCurrentWeekNumber,
+  getPollStatus,
+  getSuggestionsForWeek,
+  saveSuggestion,
+} from "../data";
 import { PollStatuses } from "src/enums";
 
 export const Suggest: Command = {
@@ -21,28 +26,33 @@ export const Suggest: Command = {
     },
   ],
   run: async (client: Client, interaction: CommandInteraction) => {
-    const validated = await ValidatePollStatus(interaction);
-    if (!validated) {
-      interaction.reply({
-        ephemeral: true,
-        content:
-          "The poll is not accepting suggestions right now. Please check back later.",
-      });
-      return;
-    }
-
     const suggestionName: string = ToTitleCaseUpperOnly(
       interaction.options?.get("name", true).value as string
     );
+
+    const weekNumber = await getCurrentWeekNumber({
+      Guild: interaction.guildId as string,
+    });
+
+    const [validated, validationMessage] = await ValidatePollStatus(
+      interaction,
+      suggestionName,
+      weekNumber
+    );
+    if (!validated) {
+      interaction.reply({
+        ephemeral: true,
+        content: validationMessage,
+      });
+      return;
+    }
 
     await saveSuggestion({
       Guild: interaction.guildId as string,
       Name: suggestionName as string,
       SuggestedByDisplayName: interaction.user.displayName,
       SuggestedByUserId: interaction.user.id,
-      WeekNumber: await getCurrentWeekNumber({
-        Guild: interaction.guildId as string,
-      }),
+      WeekNumber: weekNumber,
     });
 
     interaction.reply({
@@ -54,12 +64,35 @@ export const Suggest: Command = {
 };
 
 async function ValidatePollStatus(
-  interaction: CommandInteraction
-): Promise<boolean> {
+  interaction: CommandInteraction,
+  suggestion: string,
+  weekNumber: number
+): Promise<[boolean, string?]> {
   const statusValue = await getPollStatus({
     Guild: interaction.guildId as string,
   });
-  return statusValue === PollStatuses.PrePoll;
+  if (statusValue !== PollStatuses.PrePoll) {
+    return [
+      false,
+      "The poll is not accepting suggestions right now. Please check back later.",
+    ];
+  }
+
+  const suggestions = await getSuggestionsForWeek({
+    Guild: interaction.guildId as string,
+    WeekNumber: weekNumber,
+  });
+
+  if (suggestions.map((x) => x.Name).includes(suggestion)) {
+    return [
+      false,
+      `*${ToTitleCaseUpperOnly(
+        suggestion
+      )}* has already been submitted for this week! You can view the current list of suggestions using the \`/poll\` command.`,
+    ];
+  }
+
+  return [true];
 }
 
 function ToTitleCaseUpperOnly(str: string): string {

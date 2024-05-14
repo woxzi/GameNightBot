@@ -5,11 +5,12 @@ import appsettings from "../../appsettings.json";
 
 export function GetCurrentVotesMessageComponent(
   votes: Vote[],
+  suggestions: Suggestion[],
   header: string = "Current Votes:"
 ) {
   let message = `***${header}***\n`;
 
-  const sortedVotes = getSortedVoteTotals(votes);
+  const sortedVotes = getSortedVoteTotals(votes, suggestions);
 
   let maxDigits = 0; // number of digits the largest number holds
   for (var [suggestionName, value] of sortedVotes) {

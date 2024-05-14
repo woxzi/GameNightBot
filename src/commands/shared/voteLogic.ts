@@ -19,7 +19,7 @@ import {
   saveVote,
 } from "../../data";
 import { PollStatuses, VoteType } from "../../enums";
-import { GetActiveVotesForUser, Vote } from "../../dbModels";
+import { GetActiveVotesForUser, Suggestion, Vote } from "../../dbModels";
 import { GetVotesRemainingString } from "./messageComponents";
 
 const activitiesDropdownId = "vote.activities";
@@ -434,7 +434,7 @@ function getSubmittedMessageContent() {
   return "### *Your vote has been recorded.*";
 }
 
-export function getSortedVoteTotals(votes: Vote[]) {
+export function getSortedVoteTotals(votes: Vote[], suggestions?: Suggestion[]) {
   const voteTotals: { [Key: string]: number } = {};
   for (const vote of votes) {
     const voteAmount =
@@ -450,6 +450,15 @@ export function getSortedVoteTotals(votes: Vote[]) {
   let votesToSort: Array<[string, number]> = [];
   for (const vote in voteTotals) {
     votesToSort.push([vote, voteTotals[vote]]);
+  }
+
+  // inject suggestions nobody voted for if necessary
+  if (suggestions) {
+    for (const suggestion of suggestions) {
+      if (!votesToSort.map((x) => x[0]).includes(suggestion.Name)) {
+        votesToSort.push([suggestion.Name, 0]);
+      }
+    }
   }
   return votesToSort.sort((a, b) => b[1] - a[1]);
 }

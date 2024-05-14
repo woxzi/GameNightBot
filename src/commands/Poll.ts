@@ -31,14 +31,14 @@ export const Poll: Command = {
       Guild: guild,
     });
 
+    var suggestions = await getSuggestionsForWeek({
+      Guild: guild,
+      WeekNumber: weekNumber,
+    });
+
     let content: string = ""; //`## Current Status for Game Nights At ${interaction.guild?.name}:\n`;
     if (pollStatus === PollStatuses.PrePoll) {
-      // - if pre-poll, get suggestions
-      var suggestions = await getSuggestionsForWeek({
-        Guild: guild,
-        WeekNumber: weekNumber,
-      });
-
+      // - if pre-poll, list suggestions
       content += GetPrePollMessage(suggestions);
     } else if (pollStatus === PollStatuses.Closed) {
       // - if closed, get votes
@@ -47,7 +47,12 @@ export const Poll: Command = {
         WeekNumber: weekNumber - 1,
       });
 
-      content = GetPollClosedMessage(activeVotes);
+      var suggestions = await getSuggestionsForWeek({
+        Guild: guild,
+        WeekNumber: weekNumber,
+      });
+
+      content = GetPollClosedMessage(activeVotes, suggestions);
     } else if (pollStatus === PollStatuses.Polling) {
       // - if poll, get votes
       var activeVotes = await getAllActiveVotes({
@@ -55,7 +60,7 @@ export const Poll: Command = {
         WeekNumber: weekNumber,
       });
 
-      content += GetPollingMessage(activeVotes);
+      content += GetPollingMessage(activeVotes, suggestions);
     } else {
       content = GetFailureMessage();
     }
@@ -67,12 +72,16 @@ export const Poll: Command = {
   },
 };
 
-function GetPollClosedMessage(activeVotes: Vote[]) {
+function GetPollClosedMessage(activeVotes: Vote[], suggestions: Suggestion[]) {
   let message = "### Poll Closed\n";
   if (activeVotes.length > 0) {
     return (
       message +
-      GetCurrentVotesMessageComponent(activeVotes, "Previous Poll Results:")
+      GetCurrentVotesMessageComponent(
+        activeVotes,
+        suggestions,
+        "Previous Poll Results:"
+      )
     );
   } else {
     return (
@@ -98,7 +107,7 @@ function GetPrePollMessage(suggestions: Suggestion[]) {
   }
 }
 
-function GetPollingMessage(activeVotes: Vote[]) {
+function GetPollingMessage(activeVotes: Vote[], suggestions: Suggestion[]) {
   let message = "### Accepting Votes for Activities\n";
   if (activeVotes.length <= 0) {
     return (
@@ -106,6 +115,6 @@ function GetPollingMessage(activeVotes: Vote[]) {
       "No votes have been cast for this poll yet. Add yours using `/vote`!\n"
     );
   } else {
-    return message + GetCurrentVotesMessageComponent(activeVotes);
+    return message + GetCurrentVotesMessageComponent(activeVotes, suggestions);
   }
 }
