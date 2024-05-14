@@ -8,8 +8,8 @@ import {
 import { Command } from "../Command";
 import appsettings from "../appsettings.json";
 
-export const Join: Command = {
-  name: "join",
+export const Leave: Command = {
+  name: "leave",
   description: "Joining allows you to receive notifications from this bot.",
   type: ApplicationCommandType.ChatInput,
   run: async (client: Client, interaction: CommandInteraction) => {
@@ -17,21 +17,21 @@ export const Join: Command = {
       (x) => x.user.id === interaction.member?.user.id
     )) as GuildMember;
 
-    var role = (await interaction.guild?.roles.cache.find(
+    const role = member.roles.cache.find(
       (x) => x.id === appsettings.appConfig.roleId
-    )) as Role;
+    );
 
-    if (member.roles.cache.find((x) => x.id === role.id)) {
+    if (role) {
+      await member.roles.remove(role);
+
       interaction.reply({
         ephemeral: true,
-        content: `You are already in <@&${role.id}>!`,
+        content: `You have left <@&${role.id}>`,
       });
     } else {
-      await member.roles.add(role);
-
       interaction.reply({
         ephemeral: true,
-        content: `You have joined <@&${role.id}>`,
+        content: `You are not in <@&${appsettings.appConfig.roleId}>!`,
       });
     }
   },

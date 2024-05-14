@@ -6,6 +6,10 @@ import { Downvote } from "./commands/Downvote";
 import { ResetDb } from "./commands/admin/ResetDb";
 import { Suggest } from "./commands/Suggest";
 import { ChangePollState } from "./commands/admin/ChangePollState";
+import { Attending } from "./commands/Attending";
+import { Join } from "./commands/Join";
+import { Leave } from "./commands/Leave";
+import { RemoveVote } from "./commands/RemoveVote";
 
 export const Commands: Command[] = [
   Poll,
@@ -13,6 +17,10 @@ export const Commands: Command[] = [
   Upvote,
   Downvote,
   Suggest,
+  Attending,
+  Join,
+  Leave,
+  RemoveVote,
   ResetDb,
   ChangePollState,
 ];
