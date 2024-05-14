@@ -48,6 +48,7 @@ export const RemoveVote: Command = {
 
     if (votes.length <= 0) {
       interaction.reply({
+        ephemeral: true,
         content: "You have not voted for anything yet!",
         components: [],
       });
