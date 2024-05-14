@@ -11,7 +11,8 @@ import {
   getSuggestionsForWeek,
   saveSuggestion,
 } from "../data";
-import { PollStatuses } from "src/enums";
+import { PollStatuses } from "../enums";
+import appsettings from "../appsettings.json";
 
 export const Suggest: Command = {
   name: "suggest",
@@ -82,6 +83,13 @@ async function ValidatePollStatus(
     Guild: interaction.guildId as string,
     WeekNumber: weekNumber,
   });
+
+  if (appsettings.pollConfig.maxSuggestions >= 25) {
+    return [
+      false,
+      `There is no more space for suggestions in this poll! Please try again next week.`,
+    ];
+  }
 
   if (suggestions.map((x) => x.Name).includes(suggestion)) {
     return [
