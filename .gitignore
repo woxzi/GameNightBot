@@ -2,6 +2,7 @@
 # Config Json Files
 appsettings.*.json
 appsettings.json
+!appsettings.template.json
 
 # db file
 database/store.db
