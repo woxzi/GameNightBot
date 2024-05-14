@@ -56,7 +56,8 @@ export const ChangePollState: Command = {
     dropdownCollector.on("collect", (i) => {
       if (
         i.user.id == response.interaction.user.id &&
-        i.channelId == response.interaction.channelId
+        i.channelId == response.interaction.channelId &&
+        i.customId === changeStateDropdownId
       ) {
         if (i.customId === changeStateDropdownId) {
           if (i.values[0] === `${PollStatuses.PrePoll}`) {

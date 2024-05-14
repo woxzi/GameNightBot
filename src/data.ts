@@ -247,66 +247,6 @@ export async function getActiveVotesForUser(
   });
 }
 
-export async function getActiveVotesForUserIgnoringSpecificGame(
-  params: GetActiveVotesForUserIgnoringSpecificGame
-): Promise<Vote[]> {
-  return new Promise<Vote[]>((resolve, reject) => {
-    const output: Vote[] = [];
-    db.each<Vote>(
-      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, VoteType, WeekNumber
-       FROM Votes
-       WHERE Guild = $guild
-        AND UserId = $userid
-        AND WeekNumber = $weeknumber
-        AND VotedFor != $votedfor`,
-      {
-        $guild: params.Guild,
-        $userid: params.UserId,
-        $weeknumber: params.WeekNumber,
-        $votedfor: params.VotedFor,
-      },
-      (error, row) => {
-        if (error) {
-          reject(error.message);
-        } else if (row) {
-          output.push(row);
-        }
-      },
-      () => {
-        resolve(output);
-      }
-    );
-  });
-}
-
-export async function getActiveUserVotesForGame(
-  params: GetActiveUserVotesForGame
-): Promise<Vote> {
-  return new Promise<Vote>((resolve, reject) => {
-    db.get<Vote>(
-      `SELECT Guild, UserId, DisplayName, VotedFor, VoteCount, VoteType, WeekNumber
-       FROM Votes
-       WHERE Guild = $guild
-        AND UserId = $userid
-        AND WeekNumber = $weeknumber
-        AND VotedFor = $votedfor`,
-      {
-        $guild: params.Guild,
-        $userid: params.UserId,
-        $weeknumber: params.WeekNumber,
-        $votedfor: params.VotedFor,
-      },
-      (error, row) => {
-        if (error) {
-          reject(error.message);
-        } else {
-          resolve(row);
-        }
-      }
-    );
-  });
-}
-
 export function saveVote(data: Vote) {
   db.run(
     `INSERT INTO Votes (Guild, UserId, DisplayName, VotedFor, VoteCount, VoteType, WeekNumber)
