@@ -11,6 +11,7 @@ import {
   getAllActiveVotes,
   getCurrentWeekNumber,
   getPollStatus,
+  getSuggestionsForWeek,
 } from "../data";
 import { PollStatuses } from "src/enums";
 import { Vote } from "../dbModels";
@@ -25,33 +26,50 @@ export const Attending: Command = {
       Guild: guild,
     });
 
-    let votes: Vote[] = [];
+    let names: string[] = [];
 
     const status = await getPollStatus({ Guild: guild });
     if (status === PollStatuses.Closed) {
       // if closed, get the status for the previous week
-      votes = await getAllActiveVotes({
+      const votes = await getAllActiveVotes({
         Guild: guild,
         WeekNumber: weekNumber - 1,
       });
-    } else {
+
+      names = votes.map((x) => x.DisplayName);
+    } else if (status === PollStatuses.Polling) {
       // if pre-poll or poll, get the status for the current week
-      votes = await getAllActiveVotes({
+      const votes = await getAllActiveVotes({
         Guild: guild,
         WeekNumber: weekNumber,
       });
+
+      names = votes.map((x) => x.DisplayName);
+    } else {
+      // if pre-poll or poll, get the status for the current week
+      const suggestions = await getSuggestionsForWeek({
+        Guild: guild,
+        WeekNumber: weekNumber,
+      });
+
+      names = suggestions.map((x) => x.SuggestedByDisplayName);
     }
 
-    var voterNames: string[] = [];
-    for (const vote of votes) {
-      if (!voterNames.includes(vote.DisplayName)) {
-        voterNames.push(vote.DisplayName);
+    var distinctNames: string[] = [];
+    for (const name of names) {
+      if (!distinctNames.includes(name)) {
+        distinctNames.push(name);
       }
     }
 
-    let message = "### List of Attending Users\n";
-    for (const name of voterNames) {
-      message += `- ${name}\n`;
+    let message = "";
+    if (distinctNames.length === 0) {
+      message = "No users are attending yet.";
+    } else {
+      message = "### List of Attending Users\n";
+      for (const name of distinctNames) {
+        message += `- ${name}\n`;
+      }
     }
 
     interaction.reply({ ephemeral: true, content: message });
