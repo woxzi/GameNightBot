@@ -84,7 +84,7 @@ async function ValidatePollStatus(
     WeekNumber: weekNumber,
   });
 
-  if (appsettings.pollConfig.maxSuggestions >= 25) {
+  if (suggestions.length >= appsettings.pollConfig.maxSuggestions) {
     return [
       false,
       `There is no more space for suggestions in this poll! Please try again next week.`,
