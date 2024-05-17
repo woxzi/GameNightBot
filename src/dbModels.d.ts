@@ -47,9 +47,6 @@ export type GetAllActiveVotes = Omit<
 >;
 export type GetActiveVotesForUser = Omit<GetActiveUserVotesForGame, "VotedFor">;
 
-export type GetActiveVotesForUserIgnoringSpecificGame =
-  GetActiveUserVotesForGame;
-
 export type DeleteVotesForGame = GetActiveUserVotesForGame;
 
 export type GetActiveUserVotesForGame = Omit<

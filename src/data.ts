@@ -1,9 +1,7 @@
 import { Database } from "sqlite3";
 import {
   DeleteVotesForGame,
-  GetActiveUserVotesForGame,
   GetActiveVotesForUser,
-  GetActiveVotesForUserIgnoringSpecificGame,
   GetAllActiveVotes,
   GetCurrentWeekNumber,
   GetCurrentWeekNumberResponse,

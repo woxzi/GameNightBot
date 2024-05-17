@@ -12,6 +12,7 @@ import {
 } from "discord.js";
 import appsettings from "../../appsettings.json";
 import {
+  deleteVotesForGame,
   getActiveVotesForUser,
   getCurrentWeekNumber,
   getPollStatus,
@@ -188,16 +189,37 @@ async function HandleSubmit(
       formState.votes
     }${voteArrow} for ${formState.game}`
   );
+
+  const getActiveVotesArgs = {
+    Guild: formState.guild,
+    UserId: formState.userId,
+    WeekNumber: formState.weekNumber,
+  };
+  let activeUserVotes = await getActiveVotesForUser(getActiveVotesArgs);
+
+  deleteVotesForGame({
+    ...getActiveVotesArgs,
+    VotedFor: formState.game as string,
+  });
+
+  const currentDbVoteCount = activeUserVotes
+    .filter((x) => x.VotedFor === formState.game)
+    .map((x) => (x.VoteType === VoteType.Downvote ? -x.VoteCount : x.VoteCount))
+    .reduce((partialSum, a) => partialSum + a, 0); // take the sum of all votes for the game
+
+  const votesFromForm =
+    voteType === VoteType.Downvote ? -formState.votes : formState.votes;
+
+  const totalVoteValue = currentDbVoteCount + votesFromForm;
+
   saveVote({
     Guild: interaction.guildId as string,
     DisplayName: interaction.user.displayName,
     UserId: formState.userId,
-    VoteCount: formState.votes,
+    VoteCount: Math.abs(totalVoteValue),
     VotedFor: formState.game as string,
-    WeekNumber: await getCurrentWeekNumber({
-      Guild: interaction.guildId as string,
-    }),
-    VoteType: voteType,
+    WeekNumber: formState.weekNumber,
+    VoteType: totalVoteValue >= 0 ? VoteType.Upvote : VoteType.Downvote,
   });
 
   // update vote states after submission
