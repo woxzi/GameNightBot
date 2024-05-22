@@ -110,7 +110,9 @@ export default async ({
     return;
   }
 
-  const activities = (await getActivitiesList(interaction)).map((x) => x.Name);
+  const activities = (await getActivitiesList(interaction, weekNumber)).map(
+    (x) => x.Name
+  );
 
   const maxVotes = getMaxVotes(formState, voteType);
 
@@ -338,10 +340,13 @@ function getMaxVotes(formState: VoteFormState, voteType?: VoteType) {
   return maxVotes;
 }
 
-async function getActivitiesList(interaction: CommandInteraction<CacheType>) {
+async function getActivitiesList(
+  interaction: CommandInteraction<CacheType>,
+  weekNumber: number
+) {
   return await getSuggestionsForWeek({
     Guild: interaction.guildId as string,
-    WeekNumber: 1,
+    WeekNumber: weekNumber,
   });
 }
 
